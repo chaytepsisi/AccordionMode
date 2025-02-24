@@ -17,6 +17,7 @@ namespace AccordionMode
                     result[i] = (byte)(arr1[i] ^ arr2[i]);
                 return result;
             }
+
             else
             {
                 if (arr1.Length < arr2.Length)
@@ -37,6 +38,7 @@ namespace AccordionMode
 
             }
         }
+
         public static string ByteArrayToString(byte[] ba)
         {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
@@ -59,6 +61,15 @@ namespace AccordionMode
             }
             return arr;
 
+        }
+
+        public static byte[] GenerateZeroIV(int size)
+        {
+            var IV = new byte[size];
+            for (int i = 0; i < IV.Length; i++)
+                IV[i] = 0x0;
+            
+            return IV;
         }
     }
 }

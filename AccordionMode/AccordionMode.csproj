@@ -50,8 +50,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BlockCipherManager.cs" />
     <Compile Include="Commons.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="Hash.cs" />
     <Compile Include="KSG.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

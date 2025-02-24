@@ -28,114 +28,64 @@ namespace AccordionMode
             return new byte[][] { p0, p1, pBar };
         }
 
-        byte[] Hash(byte[] pBar, byte[] tag, byte[] key)
-        {
-            var hashAlg = SHA256.Create();
-            var hashVal = hashAlg.ComputeHash(pBar.Concat(tag).Concat(key).ToArray());
-
-            return hashVal;
-
-        }
-
-        static byte[] Encrypt(byte[] pText, byte[] Key, byte[] IV = null)
-        {
-            if (IV == null)
-            {
-                IV = new byte[Constants.BLOCK_BYTE_SIZE];
-                for (int i = 0; i < IV.Length; i++)
-                {
-                    IV[i] = 0x0;
-                }
-            }
-
-            var aesAlg = new AesManaged
-            {
-                KeySize = Constants.KEY_BYTE_SIZE * 8,
-                Key = Key,
-                BlockSize = Constants.BLOCK_BYTE_SIZE * 8,
-                Mode = CipherMode.ECB,
-                Padding = PaddingMode.Zeros,
-                IV = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
-            };
-
-            ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
-            return encryptor.TransformFinalBlock(pText, 0, pText.Length);
-
-        }
-
-        static byte[] Decrypt(byte[] cText, byte[] Key, byte[] IV = null)
-        {
-            if (IV == null)
-            {
-                IV = new byte[Constants.BLOCK_BYTE_SIZE];
-                for (int i = 0; i < IV.Length; i++)
-                {
-                    IV[i] = 0x0;
-                }
-            }
-            var aesAlg = new AesManaged
-            {
-                KeySize = Constants.KEY_BYTE_SIZE * 8,
-                Key = Key,
-                BlockSize = Constants.BLOCK_BYTE_SIZE * 8,
-                Mode = CipherMode.ECB,
-                Padding = PaddingMode.Zeros,
-                IV = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
-            };
-
-            ICryptoTransform encryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
-            return encryptor.TransformFinalBlock(cText, 0, cText.Length);
-        }
-
         public byte[] Encipher(byte[] pText, byte[] key, byte[] tag)
         {
+            BlockCipherManager blockCipherManager = new BlockCipherManager();
+
             var input = FillBranches(pText);
 
-            var tempBar = Hash(input[2], tag, key);
+            var hashFunc= new Hash(input[2], tag, key);
+            var tempBar = hashFunc.Create();
+
             input[0] = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
             input[1] = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
 
-            input[0] = Encrypt(input[0], key);
-            input[1] = Encrypt(input[1], key);
+            input[0] = blockCipherManager.Encrypt(input[0], key);
+            input[1] = blockCipherManager.Encrypt(input[1], key);
 
             var keyStreamSeed = Commons.Xor(input[0], input[1]);
-
             KSG keyStreamGenerator = new KSG(keyStreamSeed, key);
             var keyStream = keyStreamGenerator.GenerateKeyStream(input[2].Length);
             var cBar = Commons.Xor(keyStream, input[2]);
 
-            tempBar = Hash(cBar, tag, key);
+            hashFunc = new Hash(cBar, tag, key);
+            tempBar = hashFunc.Create();
+
             input[0] = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
             input[1] = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
 
-            var c0 = Encrypt(input[0], key);
-            var c1 = Encrypt(input[1], key);
-
+            var c0 = blockCipherManager.Encrypt(input[0], key);
+            var c1 = blockCipherManager.Encrypt(input[1], key);
 
             return c0.Concat(c1).Concat(cBar).ToArray();
         }
 
         public byte[] Decipher(byte[] cText, byte[] key, byte[] tag)
         {
+            BlockCipherManager blockCipherManager = new BlockCipherManager();
+
             var input = FillBranches(cText);
+            
+            input[0] = blockCipherManager.Decrypt(input[0], key);
+            input[1] = blockCipherManager.Decrypt(input[1], key);
 
-            input[0] = Decrypt(input[0], key);
-            input[1] = Decrypt(input[1], key);
+            var hashFunc = new Hash(input[2], tag, key);
+            var tempBar = hashFunc.Create();
 
-            var tempBar = Hash(input[2], tag, key);
             input[0] = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
             input[1] = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
 
             var keyStreamSeed = Commons.Xor(input[0], input[1]);
-
             KSG keyStreamGenerator = new KSG(keyStreamSeed, key);
             var keyStream = keyStreamGenerator.GenerateKeyStream(input[2].Length);
             var pBar = Commons.Xor(keyStream, input[2]);
 
-            input[0] = Decrypt(input[0], key);
-            input[1] = Decrypt(input[1], key);
+            input[0] = blockCipherManager.Decrypt(input[0], key);
+            input[1] = blockCipherManager.Decrypt(input[1], key);
 
-            tempBar = Hash(pBar, tag, key);
+            hashFunc = new Hash(pBar, tag, key);
+            tempBar = hashFunc.Create();
+
             var p0 = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
             var p1 = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
 

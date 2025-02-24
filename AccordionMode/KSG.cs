@@ -21,26 +21,17 @@ namespace AccordionMode
 
         public byte[] GenerateKeyStream(int KeyStreamLength)
         {
-
-            var aesAlg = new AesManaged
-            {
-                KeySize = Constants.KEY_BYTE_SIZE * 8,
-                Key = this.Key,
-                BlockSize = Constants.BLOCK_BYTE_SIZE * 8,
-                Mode = CipherMode.ECB,
-                Padding = PaddingMode.Zeros,
-                IV = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
-            };
-
+            BlockCipherManager blockCipherManager = new BlockCipherManager();
+            var aesAlg = blockCipherManager.CreateAesManaged(Key, Commons.GenerateZeroIV(Constants.BLOCK_BYTE_SIZE));
             ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            
             int limit = (int)Math.Ceiling(KeyStreamLength * 1.0 / Constants.BLOCK_BYTE_SIZE);
 
             List<byte> output = new List<byte>();
             for (int i = 0; i < limit; i++)
             {
-                if (i != 0)
-                    Seed = Commons.IncrementArray(Seed);
                 output.AddRange(encryptor.TransformFinalBlock(Seed, 0, Seed.Length));
+                Seed = Commons.IncrementArray(Seed);
             }
             if (output.Count > KeyStreamLength)
                 return output.Take(KeyStreamLength).ToArray();
