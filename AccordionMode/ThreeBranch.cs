@@ -89,7 +89,6 @@ namespace AccordionMode
             var p0 = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
             var p1 = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
 
-
             return p0.Concat(p1).Concat(pBar).ToArray();
         }
     }
