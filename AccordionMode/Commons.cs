@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace AccordionMode
 {
-    class Commons
+    public class Commons
     {
         public static byte[] Xor(byte[] arr1, byte[] arr2)
         {
@@ -43,6 +43,22 @@ namespace AccordionMode
             foreach (byte b in ba)
                 hex.AppendFormat("{0:x2}", b);
             return hex.ToString();
+        }
+
+        public static byte[] IncrementArray(byte[] arr)
+        {
+            for (int i = arr.Length - 1; i >= 0; i--)
+            {
+                if (arr[i] == 255)
+                    arr[i] = 0;
+                else
+                {
+                    arr[i]++;
+                    break;
+                }
+            }
+            return arr;
+
         }
     }
 }

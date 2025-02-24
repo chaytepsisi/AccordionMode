@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace AccordionMode
 {
-    class Constants
+    public class Constants
     {
         public static int BLOCK_BYTE_SIZE = 16;// 128/8=16
+        public static int KEY_BYTE_SIZE = 16;// 128/8=16
     }
 }

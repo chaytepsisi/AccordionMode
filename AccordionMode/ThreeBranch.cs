@@ -22,10 +22,10 @@ namespace AccordionMode
             else
             {
                 p0 = new byte[Constants.BLOCK_BYTE_SIZE];
-                p1= new byte[Constants.BLOCK_BYTE_SIZE];
-                pBar= new byte[Constants.BLOCK_BYTE_SIZE];
+                p1 = new byte[Constants.BLOCK_BYTE_SIZE];
+                pBar = new byte[Constants.BLOCK_BYTE_SIZE];
             }
-                return new byte[][] { p0, p1, pBar };
+            return new byte[][] { p0, p1, pBar };
         }
 
         byte[] Hash(byte[] pBar, byte[] tag, byte[] key)
@@ -37,9 +37,8 @@ namespace AccordionMode
 
         }
 
-        static byte[] Encrypt(byte[] pText, byte[] Key, byte[] IV=null)
+        static byte[] Encrypt(byte[] pText, byte[] Key, byte[] IV = null)
         {
-            byte[] encrypted;
             if (IV == null)
             {
                 IV = new byte[Constants.BLOCK_BYTE_SIZE];
@@ -48,29 +47,44 @@ namespace AccordionMode
                     IV[i] = 0x0;
                 }
             }
-            using (AesManaged aes = new AesManaged())
+
+            var aesAlg = new AesManaged
             {
-                ICryptoTransform encryptor = aes.CreateEncryptor(Key, IV);
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    using (CryptoStream cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (StreamWriter sw = new StreamWriter(cs))
-                            sw.Write(pText);
-                        encrypted = ms.ToArray();
-                    }
-                }
-            }
-            return encrypted;
+                KeySize = Constants.KEY_BYTE_SIZE * 8,
+                Key = Key,
+                BlockSize = Constants.BLOCK_BYTE_SIZE * 8,
+                Mode = CipherMode.ECB,
+                Padding = PaddingMode.Zeros,
+                IV = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+            };
+
+            ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            return encryptor.TransformFinalBlock(pText, 0, pText.Length);
+
         }
 
-        static byte[] GenerateKeyStream(byte[] seed, int byteLength)
+        static byte[] Decrypt(byte[] cText, byte[] Key, byte[] IV = null)
         {
-            var keyStream = new byte[byteLength];
-            for (int i = 0; i < keyStream.Length; i++)
-                keyStream[i] = 0x00;
+            if (IV == null)
+            {
+                IV = new byte[Constants.BLOCK_BYTE_SIZE];
+                for (int i = 0; i < IV.Length; i++)
+                {
+                    IV[i] = 0x0;
+                }
+            }
+            var aesAlg = new AesManaged
+            {
+                KeySize = Constants.KEY_BYTE_SIZE * 8,
+                Key = Key,
+                BlockSize = Constants.BLOCK_BYTE_SIZE * 8,
+                Mode = CipherMode.ECB,
+                Padding = PaddingMode.Zeros,
+                IV = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+            };
 
-            return keyStream;
+            ICryptoTransform encryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+            return encryptor.TransformFinalBlock(cText, 0, cText.Length);
         }
 
         public byte[] Encipher(byte[] pText, byte[] key, byte[] tag)
@@ -85,7 +99,9 @@ namespace AccordionMode
             input[1] = Encrypt(input[1], key);
 
             var keyStreamSeed = Commons.Xor(input[0], input[1]);
-            var keyStream = GenerateKeyStream(keyStreamSeed, input[2].Length);
+
+            KSG keyStreamGenerator = new KSG(keyStreamSeed, key);
+            var keyStream = keyStreamGenerator.GenerateKeyStream(input[2].Length);
             var cBar = Commons.Xor(keyStream, input[2]);
 
             tempBar = Hash(cBar, tag, key);
@@ -97,6 +113,34 @@ namespace AccordionMode
 
 
             return c0.Concat(c1).Concat(cBar).ToArray();
+        }
+
+        public byte[] Decipher(byte[] cText, byte[] key, byte[] tag)
+        {
+            var input = FillBranches(cText);
+
+            input[0] = Decrypt(input[0], key);
+            input[1] = Decrypt(input[1], key);
+
+            var tempBar = Hash(input[2], tag, key);
+            input[0] = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
+            input[1] = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
+
+            var keyStreamSeed = Commons.Xor(input[0], input[1]);
+
+            KSG keyStreamGenerator = new KSG(keyStreamSeed, key);
+            var keyStream = keyStreamGenerator.GenerateKeyStream(input[2].Length);
+            var pBar = Commons.Xor(keyStream, input[2]);
+
+            input[0] = Decrypt(input[0], key);
+            input[1] = Decrypt(input[1], key);
+
+            tempBar = Hash(pBar, tag, key);
+            var p0 = Commons.Xor(input[0], tempBar.Take(Constants.BLOCK_BYTE_SIZE).ToArray());
+            var p1 = Commons.Xor(input[1], tempBar.Skip(Constants.BLOCK_BYTE_SIZE).Take(Constants.BLOCK_BYTE_SIZE).ToArray());
+
+
+            return p0.Concat(p1).Concat(pBar).ToArray();
         }
     }
 }
