@@ -52,6 +52,7 @@
   <ItemGroup>
     <Compile Include="Commons.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="KSG.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ThreeBranch.cs" />
